@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reveal</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>Reveal</h1>
+        <p class="tagline">Interactive training to stay safe online</p>
+      </div>
+      <select id="mode-switch" aria-label="Switch user mode">
+        <option value="learner">Learner Mode</option>
+        <option value="tutor">Tutor Mode</option>
+      </select>
+    </header>
+
+    <main>
+      <nav class="tabs" role="tablist">
+        <button class="tab" data-tab="analysis" role="tab">Risk Scan</button>
+        <button class="tab active" data-tab="simulator" role="tab">Chat Trainer</button>
+        <button class="tab" data-tab="resources" role="tab">Learn & Support</button>
+        <button class="tab" data-tab="progress" role="tab">Progress</button>
+      </nav>
+
+      <section id="simulator" class="tab-panel active" role="tabpanel" aria-labelledby="Chat Trainer">
+        <div class="panel-header">
+          <h2>Interactive Chat Simulation</h2>
+          <p>Practice spotting warning signs in a safe, guided conversation.</p>
+        </div>
+        <div class="chat-window" id="chat-window" aria-live="polite"></div>
+        <form id="chat-form" class="chat-form">
+          <label for="chat-input" class="sr-only">Your reply</label>
+          <input id="chat-input" name="chat-input" type="text" placeholder="Type your response" autocomplete="off" required />
+          <button type="submit">Send</button>
+        </form>
+        <div id="simulation-feedback" class="feedback" role="status"></div>
+        <div class="actions">
+          <button id="restart-simulation" class="secondary">Restart Scenario</button>
+          <button id="next-simulation" class="secondary">Next Level</button>
+        </div>
+      </section>
+
+      <section id="analysis" class="tab-panel" role="tabpanel" aria-labelledby="Risk Scan">
+        <div class="panel-header">
+          <h2>Preventive Analysis</h2>
+          <p>Highlight and analyze text for grooming risks using local AI.</p>
+        </div>
+        <textarea id="analysis-input" placeholder="Paste or type a conversation snippet"></textarea>
+        <div class="analysis-actions">
+          <button id="run-analysis">Analyze Chat</button>
+          <button id="analyze-page" class="secondary" title="Analyze conversation on the current tab">Analyze Current Page</button>
+        </div>
+        <div id="analysis-result" class="analysis-result" role="status"></div>
+        <p class="note">Tip: You can also highlight text on a page and use Ctrl + Shift + Y to scan it instantly.</p>
+      </section>
+
+      <section id="resources" class="tab-panel" role="tabpanel" aria-labelledby="Learn & Support">
+        <div class="panel-header">
+          <h2>Educational & Help Center</h2>
+          <p>Stay informed with trusted guidance for families and educators.</p>
+        </div>
+        <div id="resource-list" class="resource-list"></div>
+      </section>
+
+      <section id="progress" class="tab-panel" role="tabpanel" aria-labelledby="Progress">
+        <div class="panel-header">
+          <h2>Progress & Achievements</h2>
+          <p>Track your learning journey with badges and milestones.</p>
+        </div>
+        <div id="progress-summary" class="progress-summary"></div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>Always talk to a trusted adult if something feels wrong. This tool is for education only.</p>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
+
