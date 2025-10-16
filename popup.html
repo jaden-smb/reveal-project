@@ -49,6 +49,15 @@
           <h2>Preventive Analysis</h2>
           <p>Highlight and analyze text for grooming risks using local AI.</p>
         </div>
+        <div class="ai-status" aria-live="polite">
+          <button id="check-ai" class="secondary" title="Check local AI availability">Check Local AI</button>
+          <span id="ai-status-text">Local AI: unknown</span>
+          <div class="ai-setup">
+            <span>Extension ID: <code id="ext-id">(loading)</code></span>
+            <button id="copy-origins" class="secondary" title="Copy PowerShell command to allow this extension">Copy OLLAMA_ORIGINS cmd</button>
+            <span id="copy-origins-status" class="muted"></span>
+          </div>
+        </div>
         <textarea id="analysis-input" placeholder="Paste or type a conversation snippet"></textarea>
         <div class="analysis-actions">
           <button id="run-analysis">Analyze Chat</button>

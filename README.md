@@ -38,6 +38,74 @@ Keyboard shortcut: highlight text on any page and press Ctrl+Shift+Y to analyze.
 
 Install and run [Ollama](https://ollama.ai/). Ensure the API is available at `http://127.0.0.1:11434` and pull a suitable chat model, e.g. `mistral:7b-instruct`. Without Ollama running, the extension uses the built-in rule-based fallback.
 
+### Troubleshooting: OLLAMA_FORBIDDEN on Windows 11
+
+If you see a technical note in results like:
+
+> OLLAMA_FORBIDDEN: Local model rejected the request. Ensure the API allows local connections.
+
+Modern Ollama versions restrict which browser origins can call the local API. Allow your extension's origin by setting `OLLAMA_ORIGINS` and restarting the service.
+
+Steps (PowerShell):
+
+1. Allow common extension/browser origins:
+
+```powershell
+$env:OLLAMA_ORIGINS = "chrome-extension://*,edge-extension://*,brave-extension://*,http://localhost:*,http://127.0.0.1:*"
+```
+
+To persist across sessions:
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "chrome-extension://*,edge-extension://*,brave-extension://*,http://localhost:*,http://127.0.0.1:*", "User")
+```
+
+2. Restart Ollama:
+
+```powershell
+taskkill /IM ollama.exe /F 2>$null
+Start-Process -FilePath ollama -ArgumentList "serve"
+```
+
+3. Verify the API is reachable (note: /api/version can succeed even when /api/generate is forbidden):
+
+```powershell
+curl http://127.0.0.1:11434/api/version
+```
+
+If this returns version JSON, retry the extension. Ensure your firewall allows local connections to port 11434.
+
+If you still see OLLAMA_FORBIDDEN when analyzing:
+
+- Confirm the environment variable is applied to the process actually running Ollama. If you installed Ollama as a Windows service or start it via a manager, set the variable at the User (or System) level and restart that process/session.
+
+Set at System level (requires admin PowerShell):
+
+```powershell
+[System.Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "chrome-extension://*,edge-extension://*,brave-extension://*,http://localhost:*,http://127.0.0.1:*", "Machine")
+```
+
+Then restart the Ollama service/process.
+
+Exact-origin allow (if wildcards are restricted in your build):
+1. Load the extension and copy its ID from chrome://extensions (e.g., `abcd1234efghijklmnop`)
+2. Set an exact origin for your extension:
+
+```powershell
+$extId = "<your-extension-id>"
+[System.Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "chrome-extension://$extId,http://localhost:*,http://127.0.0.1:*", "User")
+```
+
+3. Restart Ollama.
+
+Validate with an Origin header (simulating a browser):
+
+```powershell
+curl -Method GET -Headers @{ 'Origin' = 'chrome-extension://<your-extension-id>' } http://127.0.0.1:11434/api/version
+```
+
+If version returns with your Origin header, retry the extension’s “Check Local AI” → it should report “ready”.
+
 ## Privacy
 
 - Analysis runs locally. No data is sent to external services by this extension.

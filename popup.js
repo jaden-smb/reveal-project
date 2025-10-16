@@ -1,5 +1,6 @@
 import { SimulationEngine } from './scripts/simulation_engine.js';
 import { RiskAnalyzer } from './scripts/risk_analyzer.js';
+import { checkOllamaStatus, probeOllamaPermissions } from './scripts/llm/ollama_client.js';
 import { ResourceLibrary } from './scripts/resource_library.js';
 import { ProgressTracker } from './scripts/progress_tracker.js';
 
@@ -15,6 +16,11 @@ const analysisInput = document.getElementById('analysis-input');
 const analysisBtn = document.getElementById('run-analysis');
 const analysisResultEl = document.getElementById('analysis-result');
 const analyzePageBtn = document.getElementById('analyze-page');
+const checkAiBtn = document.getElementById('check-ai');
+const aiStatusText = document.getElementById('ai-status-text');
+const extIdEl = document.getElementById('ext-id');
+const copyOriginsBtn = document.getElementById('copy-origins');
+const copyOriginsStatus = document.getElementById('copy-origins-status');
 const resourceListEl = document.getElementById('resource-list');
 const progressSummaryEl = document.getElementById('progress-summary');
 const modeSwitch = document.getElementById('mode-switch');
@@ -42,6 +48,12 @@ ensureFirstOpenDefaults();
 resourceLibrary.render(modeSwitch.value);
 progressTracker.render();
 // Start with a blank slate: do not auto-start the scenario.
+
+// Show extension ID in UI
+try {
+  const id = chrome.runtime?.id || (new URL(chrome.runtime.getURL(''))).host || '(unknown)';
+  if (extIdEl) extIdEl.textContent = id;
+} catch {}
 
 modeSwitch.addEventListener('change', () => {
   const mode = modeSwitch.value;
@@ -88,6 +100,19 @@ analysisBtn.addEventListener('click', async () => {
   }
 });
 
+copyOriginsBtn?.addEventListener('click', async () => {
+  try {
+    const id = chrome.runtime?.id || (new URL(chrome.runtime.getURL(''))).host || '';
+    const cmd = `$env:OLLAMA_ORIGINS = "chrome-extension://${id},http://localhost:*,http://127.0.0.1:*"`;
+    await navigator.clipboard.writeText(cmd);
+    if (copyOriginsStatus) copyOriginsStatus.textContent = 'Copied. Paste in PowerShell, then restart Ollama.';
+    setTimeout(() => { if (copyOriginsStatus) copyOriginsStatus.textContent = ''; }, 4000);
+  } catch (e) {
+    if (copyOriginsStatus) copyOriginsStatus.textContent = 'Could not copy. Please copy manually.';
+    setTimeout(() => { if (copyOriginsStatus) copyOriginsStatus.textContent = ''; }, 4000);
+  }
+});
+
 analyzePageBtn.addEventListener('click', async () => {
   renderAnalysisResult({ status: 'loading', summary: 'Analyzing conversation on this page…' });
   try {
@@ -124,6 +149,42 @@ analyzePageBtn.addEventListener('click', async () => {
     renderAnalysisResult(response || { status: 'warning', summary: 'No response from the page.' });
   } catch (error) {
     renderAnalysisResult({ status: 'critical', summary: `Could not analyze this page: ${error.message}` });
+  }
+});
+
+checkAiBtn?.addEventListener('click', async () => {
+  if (!aiStatusText) return;
+  checkAiBtn.disabled = true;
+  aiStatusText.textContent = 'Local AI: checking…';
+  try {
+    const status = await checkOllamaStatus();
+    if (status?.ok) {
+      aiStatusText.textContent = `Local AI: available (v${status.version}) – checking permissions…`;
+      try {
+        await probeOllamaPermissions();
+        aiStatusText.textContent = `Local AI: ready (v${status.version})`;
+      } catch (permErr) {
+        const msg = String(permErr?.message || 'error');
+        if (/FORBIDDEN/i.test(msg)) {
+          aiStatusText.textContent = 'Local AI: forbidden for POST /api/generate (set OLLAMA_ORIGINS)';
+        } else {
+          aiStatusText.textContent = `Local AI: reachable, but generate failed (${msg})`;
+        }
+      }
+    } else {
+      aiStatusText.textContent = 'Local AI: unavailable';
+    }
+  } catch (error) {
+    const msg = String(error?.message || 'unavailable');
+    if (/FORBIDDEN/i.test(msg)) {
+      aiStatusText.textContent = 'Local AI: forbidden (set OLLAMA_ORIGINS)';
+    } else if (/TIMEOUT/i.test(msg)) {
+      aiStatusText.textContent = 'Local AI: timeout (is Ollama running?)';
+    } else {
+      aiStatusText.textContent = `Local AI: error (${msg})`;
+    }
+  } finally {
+    checkAiBtn.disabled = false;
   }
 });
 

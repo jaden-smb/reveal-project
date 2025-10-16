@@ -1,6 +1,7 @@
 const OLLAMA_ENDPOINT = 'http://127.0.0.1:11434/api/generate';
+const OLLAMA_VERSION_ENDPOINT = 'http://127.0.0.1:11434/api/version';
 const FALLBACK_MODEL = 'mistral:7b-instruct';
-const REQUEST_TIMEOUT_MS = 30000;
+const REQUEST_TIMEOUT_MS = 90000;
 
 export async function classifyWithOllama(text) {
   const sanitized = sanitizeInput(text);
@@ -36,6 +37,73 @@ export async function classifyWithOllama(text) {
     const parsed = parseModelResponse(raw);
     const normalized = normalizeModelOutput(parsed);
     return applySafetyOverrides(sanitized, normalized);
+  } catch (error) {
+    throw wrapClientError(error);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Lightweight health check for Ollama availability and CORS/origin allowance.
+ * Returns { ok: true, version } on success; throws wrapped error otherwise.
+ */
+export async function checkOllamaStatus() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Math.min(REQUEST_TIMEOUT_MS, 5000));
+  try {
+    const response = await fetch(OLLAMA_VERSION_ENDPOINT, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: controller.signal,
+      credentials: 'omit',
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw buildHttpError(response.status, text);
+    }
+    const payload = await response.json().catch(() => ({}));
+    const version = payload?.version || payload?.build || 'unknown';
+    return { ok: true, version };
+  } catch (error) {
+    throw wrapClientError(error);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Probe permissions by issuing a minimal /api/generate request.
+ * Returns { ok: true } on success (even if model errors but not 403),
+ * otherwise throws with wrapped error (including OLLAMA_FORBIDDEN on 403).
+ */
+export async function probeOllamaPermissions() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Math.min(REQUEST_TIMEOUT_MS, 5000));
+  try {
+    const response = await fetch(OLLAMA_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        model: FALLBACK_MODEL,
+        prompt: 'ping',
+        stream: false,
+        options: { temperature: 0 }
+      }),
+      signal: controller.signal,
+      credentials: 'omit',
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw buildHttpError(response.status, text);
+    }
+    // We don't care about the content here, only that POST is allowed
+    return { ok: true };
   } catch (error) {
     throw wrapClientError(error);
   } finally {
